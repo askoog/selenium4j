@@ -2,18 +2,24 @@ package org.roussev.selenium4j;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
 import junit.framework.TestCase;
 
 import org.apache.log4j.Logger;
+import org.openqa.selenium.Capabilities;
+import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverBackedSelenium;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.htmlunit.HtmlUnitDriver;
 import org.openqa.selenium.ie.InternetExplorerDriver;
+import org.openqa.selenium.remote.DesiredCapabilities;
+import org.openqa.selenium.remote.RemoteWebDriver;
 
 import com.thoughtworks.selenium.Selenium;
 
@@ -97,6 +103,9 @@ public abstract class MainTestCase extends TestCase {
 		} else if (InternetExplorerDriver.class.getSimpleName().equals(driver)) {
 			webDriver = new InternetExplorerDriver();
 			
+		} else if (driver.startsWith(RemoteWebDriver.class.getSimpleName())) {
+			webDriver = initRemoteWebDriver(driver);
+
 		} else {
 			throw new UnsupportedOperationException("Driver '" + driver
 					+ "' is not supported.");
@@ -112,6 +121,40 @@ public abstract class MainTestCase extends TestCase {
 		logger.debug("SeleniumSession started.");
 	}
 
+	private static RemoteWebDriver initRemoteWebDriver(String driver) {
+		try {
+			Map<String, String> gridProperties = parseRemoteGridProperties(driver);
+			Platform requestedPlatform = Platform.valueOf(gridProperties.get("platform").toUpperCase());
+			Capabilities desiredCapabilities = new DesiredCapabilities(gridProperties.get("browser"),
+					gridProperties.get("version"), requestedPlatform);
+			URL hubUrl = new URL(gridProperties.get("hub.url"));
+			return new RemoteWebDriver(hubUrl, desiredCapabilities);
+
+		} catch (MalformedURLException e) {
+			throw new RuntimeException("Failed to create remote web driver", e);
+		}
+	}
+
+	/**
+	 * Parses remote web driver properties on the form key1=value1|key2=value2
+	 * <p>
+	 * Example <code>
+	 * RemoteWebDriver|hub.url=http://selenium-hub|browser=firefox|version=|platform=ANY
+	 * </code>
+	 */
+	private static Map<String, String> parseRemoteGridProperties(String driver) {
+		String[] tokens = driver.split("\\|");
+		Map<String, String> gridProperties = new HashMap<String, String>();
+		for (String token : tokens) {
+			String[] prop = token.split("=");
+			if (prop.length > 1) {
+				gridProperties.put(prop[0].trim(), prop[1] == null ? "" : prop[1].trim());
+			}
+		}
+		return gridProperties;
+	}
+
+	
 	protected static void closeSeleniumSession() throws Exception {
 		logger.debug("closing SeleniumSession... ");
 		if (null != session()) {
