@@ -50,11 +50,14 @@ public class Transformer {
   private final static String JUNIT_DIR_ARG = "junitDir";
   private final static String DIE_ON_UNIMPLEMENTED_ARG = "dieOnUnimp";
   private final static String CREATE_FROM_ARG = "createFrom";
+  private final static String CLASS_NAME_SUFFIX = "classNameSuffix";
 
   private static String testSrcDir;
   private static String testBuildDir;
   private static Boolean dieOnUnimplemented = true;
   private static String createFrom;
+  private static String classNameSuffix = null;
+
 
   // public final static Properties WEBTEST_PROPERTIES = new Properties();
   // public final static String WEBTEST_PROPERTIES_FILE =
@@ -83,6 +86,7 @@ public class Transformer {
     options.addOption(JUNIT_DIR_ARG, true, "Desination dir for java tests");
     options.addOption(DIE_ON_UNIMPLEMENTED_ARG, true, "Die if a test method is unimplemented");
     options.addOption(CREATE_FROM_ARG, true, "Build tests from reading the filesystem");
+    options.addOption(CLASS_NAME_SUFFIX, true, "Specify a suffix for generated class names (default is no suffix)");
 
     CommandLineParser parser = new GnuParser();
     CommandLine cmd = parser.parse(options, args);
@@ -117,6 +121,10 @@ public class Transformer {
         createFrom = SUITE_NAME;
     }
 
+    if (cmd.hasOption(CLASS_NAME_SUFFIX)) {
+        classNameSuffix = cmd.getOptionValue(CLASS_NAME_SUFFIX);
+    }
+    
     File buildDir = new File(testBuildDir);
     if (buildDir.exists()) {
       deleteDir(buildDir, true);
@@ -208,6 +216,9 @@ public class Transformer {
     for (File f : files) {
       StringBuilder sb = new StringBuilder();
       String className = getFileNameNoSuffix(f);
+      if (classNameSuffix != null) {
+    	  className += classNameSuffix;
+      }
       Collection<Command> cmds = TestParser.parseHTML(f);
       for (Command c : cmds) {
         String cmdStr = CommandToMethodTranslator.discovery(c);
